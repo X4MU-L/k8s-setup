@@ -114,6 +114,60 @@ install_cillium(){
     log INFO "Cilium CNI plugin version $CILIUM_CLI_VERSION installed"
 }
 
+# Install chosen CNI plugin
+install_cni() {
+  log INFO "Installing CNI plugin: $CNI_PROVIDER"
+  
+  case $CNI_PROVIDER in
+    cilium)
+      install_cillium
+      ;;
+    calico)
+      install_calico
+      ;;
+    *)
+      log ERROR "Unsupported CNI plugin: $CNI_PROVIDER"
+      exit 1
+      ;;
+  esac
+}
+
+# Install Calico CNI
+install_calico() {
+  log INFO "Installing Calico CNI"
+  
+  # Adjust for Calico's expected CIDR if necessary
+    if [ "$POD_NETWORK_CIDR" != "192.168.0.0/16" ]; then
+        log WARN "Calico default CIDR is 192.168.0.0/16, but you specified $POD_NETWORK_CIDR"
+        log WARN "This may require additional configuration"
+    fi
+  
+    # Install Calico
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+  
+    # Create Calico custom resource with specified CIDR
+    cat > /tmp/calico-cr.yaml << EOF
+    apiVersion: operator.tigera.io/v1
+    kind: Installation
+    metadata:
+    name: default
+    spec:
+    calicoNetwork:
+        ipPools:
+        - blockSize: 26
+        cidr: ${POD_NETWORK_CIDR}
+        encapsulation: VXLANCrossSubnet
+        natOutgoing: Enabled
+        nodeSelector: all()
+EOF
+
+    kubectl create -f /tmp/calico-cr.yaml
+    rm /tmp/calico-cr.yaml
+  
+    log INFO "Calico installed successfully"
+}
+
+
 # Install kubeadm, kubelet, and kubectl
 install_kubernetes_tools() {
   log INFO "Installing kubeadm, kubelet, and kubectl version $KUBERNETES_VERSION"

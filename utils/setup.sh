@@ -81,6 +81,8 @@ init_master_node() {
         --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
   fi
   
+  # Install CNI based on selection
+  install_cni
   # Set up kubectl for root
   mkdir -p /root/.kube
   cp -f /etc/kubernetes/admin.conf /root/.kube/config
@@ -100,21 +102,30 @@ init_master_node() {
 
 # Check initialization status
 check_init_status() {
-    if [ "$NODE_TYPE" = "control-plane" ]; then
-        log INFO "Checking control plane status..."
-        # Wait for API server to become available
-        timeout=60
-        counter=0
-        KUBECONFIG=/etc/kubernetes/admin.conf
-        until kubectl get nodes &>/dev/null; do
-            counter=$((counter + 1))
-            if [ "$counter" -gt "$timeout" ]; then
-                log ERROR "Timed out waiting for API server to become available"
-                exit 1
-            fi
-            sleep 1
-        done
-        
+    log INFO "Checking control plane status..."
+    if [[ "$NODE_TYPE" == "control-plane" ]]; then
+        if [[ "$CNI_PROVIDER" == "cilium" ]]; then
+            
+            cilium status --wait
+            log INFO "Cilium status check completed"
+            # Test connectivity
+            log INFO "Testing connectivity with cilium connectivity test"
+            cilium connectivity test
+            log INFO "Cilium connectivity test completed"
+        else
+            # Wait for API server to become available
+            timeout=60
+            counter=0
+            KUBECONFIG=/etc/kubernetes/admin.conf
+            until kubectl get nodes &>/dev/null; do
+                counter=$((counter + 1))
+                if [ "$counter" -gt "$timeout" ]; then
+                    log ERROR "Timed out waiting for API server to become available"
+                    exit 1
+                fi
+                sleep 1
+            done
+        fi
         # Display nodes
         kubectl get nodes -o wide
     fi

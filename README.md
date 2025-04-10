@@ -44,7 +44,7 @@ sudo make install
 sudo k8s-installer --node-type control-plane \
    --control-plane-endpoint k8s-master.example.com \
    --k8s-version <k8s_version> \
-   --cni-provider  [cillium|calico] \
+   --cni-provider  [cilium|calico] \
    --container-runtime-version <runtime_version>
 ```
 
@@ -54,7 +54,7 @@ sudo k8s-installer --node-type control-plane \
 sudo k8s-installer --node-type worker \
    --join-command kubeadm join .... \
    --k8s-version <k8s_version> \
-   --cni-provider  [cillium|calico] \
+   --cni-provider  [cilium|calico] \
    --container-runtime-version <runtime_version>
 
 ```

@@ -137,19 +137,19 @@ parse_args() {
 
 # Main function
 main() {
-  log INFO "Starting Kubernetes installation with version $KUBERNETES_VERSION, role: $NODE_TYPE"
-  
-  check_root
-  setup_system_environment
-  setup_containerd
-  configure_containerd_kubeadm_and_kubelet
-  
-  if [ "$NODE_TYPE" = "control-plane " ]; then
-    init_master_node
-  else
-    join_worker_node
-  fi
-  check_init_status
+    log INFO "Starting Kubernetes installation with version $KUBERNETES_VERSION, role: $NODE_TYPE"
+    
+    check_root
+    setup_system_environment
+    setup_containerd
+    configure_containerd_kubeadm_and_kubelet
+    
+    if [[ "$NODE_TYPE" == "control-plane" ]]; then
+        init_master_node
+    else
+        join_worker_node
+    fi
+    check_init_status
   
   log SUCCESS "Kubernetes setup completed successfully"
 }
