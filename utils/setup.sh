@@ -65,37 +65,44 @@ configure_containerd_kubeadm_and_kubelet(){
 }
 # Initialize Kubernetes master node
 init_master_node() {
-  log INFO "Initializing Kubernetes control-plane node"
-  
-  # Check if kubeadm has already been initialized
-  if [[ -f /etc/kubernetes/admin.conf ]]; then
-      log WARN "Kubernetes control plane already initialized"
-  else
-      # Pull container images first
+    log INFO "Initializing Kubernetes control-plane node"
+
+    # Check if kubeadm has already been initialized
+    if [[ -f /etc/kubernetes/admin.conf ]]; then
+        log WARN "Kubernetes control plane already initialized"
+    else
+        # Pull container images first
         log INFO "Pulling container images for Kubernetes control plane"
         kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml
         log INFO "Container images pulled successfully"
-      
-      # Initialize the control-plane
+        
+        # Initialize the control-plane
         kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
-  fi
-  
-  # Install CNI based on selection
-  install_cni
-  # Set up kubectl for root
-  mkdir -p /root/.kube
-  cp -f /etc/kubernetes/admin.conf /root/.kube/config
-  chown $(id -u):$(id -g) /root/.kube/config
-  
-  # Set up kubectl for the current user if not root
-  if [[ $SUDO_USER ]]; then
-      USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
-      mkdir -p $USER_HOME/.kube
-      cp -f /etc/kubernetes/admin.conf $USER_HOME/.kube/config
-      chown -R $SUDO_USER:$SUDO_USER $USER_HOME/.kube
-  fi
-  
-  log SUCCESS "Kubernetes control plane initialized successfully"
+    fi
+
+    # Pull container images first
+    log INFO "Pulling container images for Kubernetes control plane"
+    kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml
+    log INFO "Container images pulled successfully"
+
+    # Initialize the control-plane
+    kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
+    # Install CNI based on selection
+    install_cni
+    # Set up kubectl for root
+    mkdir -p /root/.kube
+    cp -f /etc/kubernetes/admin.conf /root/.kube/config
+    chown $(id -u):$(id -g) /root/.kube/configå
+
+    # Set up kubectl for the current user if not root
+    if [[ $SUDO_USER ]]; then
+        USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+        mkdir -p $USER_HOME/.kube
+        cp -f /etc/kubernetes/admin.conf $USER_HOME/.kube/config
+        chown -R $SUDO_USER:$SUDO_USER $USER_HOME/.kube
+    fi
+
+    log SUCCESS "Kubernetes control plane initialized successfully"
 }
 
 
