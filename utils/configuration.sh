@@ -61,7 +61,7 @@ EOF
 EOF
 
     # Apply sysctl parameters
-    sysctl --system
+    sysctl --system > /dev/null 2>&1
 
     log INFO "System configured for Kubernetes"
 }

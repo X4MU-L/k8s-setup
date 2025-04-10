@@ -46,12 +46,12 @@ install_dependencies() {
 # Install container runtime (containerd)
 install_containerd() {
     # Install containerd
-    
+    log INFO "Installing containerd version ${CONTAINER_RUNTIME_VERSION}"
     # Check if containerd is already installed
     if command -v containerd &> /dev/null; then
         CURRENT_VERSION=$(containerd --version | awk '{print $3}' | tr -d ',')
         if [[ "$CURRENT_VERSION" == "v${CONTAINER_RUNTIME_VERSION}" ]]; then
-            log_warning "containerd ${CONTAINER_RUNTIME_VERSION} is already installed"
+            log WARN "containerd ${CONTAINER_RUNTIME_VERSION} is already installed"
             return
         fi
     fi
@@ -76,10 +76,13 @@ install_containerd() {
     # and enable it to start on boot
     systemctl daemon-reload
     systemctl enable --now containerd
+
+    log SUCCESS "Containerd version ${CONTAINER_RUNTIME_VERSION} installed and service started"
 }
 
 # Install runc
 install_runc(){
+    log INFO "Installing runc"
     # Get the runc binary
     wget -q -O runc https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH} > /dev/null 2>&1
     # Install runc to /usr/local/sbin
@@ -89,6 +92,8 @@ install_runc(){
     install -m 755 runc /usr/local/sbin/runc > /dev/null 2>&1
     # Remove the downloaded runc binary
     rm runc
+
+    log SUCCESS "runc installed"
 }
 
 # Download and install CNI plugins
@@ -115,17 +120,19 @@ install_kubernetes_tools() {
 
   # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
   # sudo mkdir -p -m 755 /etc/apt/keyrings
+  log INFO "Adding Kubernetes APT repository"
   curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
   # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
+  log INFO "Adding Kubernetes APT repository completed"
   # Install the Kubernetes tools (kubeadm, kubelet, kubectl)
-  sudo apt-get update
+  sudo apt-get update > /dev/null 2>&1
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
   sudo apt-mark unhold kubelet kubeadm kubectl || true
   # Install the Kubernetes tools
-  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION} > /dev/null 2>&1
+  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION}
   # Mark the Kubernetes tools to be held at the current version
   # This prevents them from being automatically updated
   sudo apt-mark hold kubelet kubeadm kubectl
