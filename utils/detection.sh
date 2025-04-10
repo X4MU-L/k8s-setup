@@ -12,58 +12,58 @@
 # Email: okolisamuel21@gmail.com
 # URL: https://github.com/X4MU-L
 
-# Detect OS and distribution
+# Detect OS and architecture
 detect_os_and_arch() {
-  log INFO "Detecting operating system"
-  
-  OS=$(uname -s)
-  if [ "$OS" != "Linux" ]; then
-    log ERROR "This script only supports Linux operating systems"
-    exit 1
-  fi
-  
-  # Detect distribution
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS_DISTRO=$ID
-    OS_VERSION=$VERSION_ID
-    log INFO "Detected distribution: $OS_DISTRO $OS_VERSION"
-  else
-    log ERROR "Cannot detect Linux distribution"
-    exit 1
-  fi
-  
-  # Check for supported distributions
-  case $OS_DISTRO in
-    ubuntu|debian)
-      log INFO "Running on supported distribution: $OS_DISTRO $OS_VERSION"
-      ;;
-    *)
-      log WARN "Unsupported distribution: $OS_DISTRO. This script is designed for Ubuntu/Debian"
-      log WARN "Continuing but may encounter issues..."
-      ;;
-  esac
+    log INFO "Detecting operating system"
+    
+    OS=$(uname -s)
+    if [ "$OS" != "Linux" ]; then
+        log ERROR "This script only supports Linux operating systems"
+        exit 1
+    fi
+    
+    # Detect distribution
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_DISTRO=$ID
+        OS_VERSION=$VERSION_ID
+        log INFO "Detected distribution: $OS_DISTRO $OS_VERSION"
+    else
+        log ERROR "Cannot detect Linux distribution"
+        exit 1
+    fi
+    
+    # Check for supported distributions
+    case $OS_DISTRO in
+        ubuntu|debian)
+            log INFO "Running on supported distribution: $OS_DISTRO $OS_VERSION"
+            ;;
+        *)
+            log WARN "Unsupported distribution: $OS_DISTRO. This script is designed for Ubuntu/Debian"
+            log WARN "Continuing but may encounter issues..."
+            ;;
+    esac
 
-  # Detect architecture
-  ARCH=$(uname -m)
-  case $ARCH in
-    x86_64)
-      ARCH="amd64"
-      ;;
-    aarch64)
-      ARCH="arm64"
-      ;;
-    *)
-      log ERROR "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported"
-      exit 1
-      ;;
-  esac
-  log INFO "Detected architecture: $ARCH"
+    # Detect architecture
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64)
+            ARCH="amd64"
+            ;;
+        aarch64)
+            ARCH="arm64"
+            ;;
+        *)
+            log ERROR "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported"
+            exit 1
+            ;;
+    esac
+    log INFO "Detected architecture: $ARCH"
 }
 
 # Detect the init system and cgroup version
 detect_cgroup_config() {
-   log INFO "Detecting init system and cgroup version"
+    log INFO "Detecting init system and cgroup version"
     
     # Check init system
     if [ "$(ps -p 1 -o comm=)" = "systemd" ]; then
@@ -117,4 +117,25 @@ check_ports() {
       log INFO "Port $port is available"
     fi
   done
+}
+
+# Verify cluster status
+verify_cluster() {
+    log INFO "Verifying cluster status"
+    
+    # Wait for node to be ready
+    log INFO "Waiting for node to be ready..."
+    kubectl wait --for=condition=ready node/$(hostname) --timeout=300s || {
+        log WARN "Node is not ready yet"
+    }
+    
+    # Check node status
+    log INFO "Node status:"
+    kubectl get nodes
+    
+    # Check pod status
+    log INFO "Pod status:"
+    kubectl get pods -A
+    
+    log SUCCESS "Cluster verification completed"
 }
