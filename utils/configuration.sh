@@ -129,26 +129,26 @@ configure_kubeadm() {
   
   # Create the kubeadm configuration file with the specified settings
   sudo   tee  /etc/kubernetes/kubeadm-config.yaml  > /dev/null << EOF
-  apiVersion: kubeadm.k8s.io/v1beta4
-  kind: InitConfiguration
-  nodeRegistration:
-    criSocket: unix:///run/containerd/containerd.sock
-    name: $(hostname -s)
-    kubeletExtraArgs:
-      - name: cgroup-driver
-        value: "$CGROUP_DRIVER"
-  ---
-  apiVersion: kubeadm.k8s.io/v1beta4
-  kind: ClusterConfiguration
-  kubernetesVersion: v${KUBERNETES_VERSION}
-  controlPlaneEndpoint: "$CONTROL_PLANE_ENDPOINT"
-  networking:
-    podSubnet: "$POD_NETWORK_CIDR"
-    serviceSubnet: "10.96.0.0/12"
-  ---
-  apiVersion: kubelet.config.k8s.io/v1beta1
-  kind: KubeletConfiguration
-  cgroupDriver: "$CGROUP_DRIVER"
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  name: $(hostname -s)
+  kubeletExtraArgs:
+    - name: cgroup-driver
+      value: "$CGROUP_DRIVER"
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+kubernetesVersion: v${KUBERNETES_VERSION}
+controlPlaneEndpoint: "$CONTROL_PLANE_ENDPOINT"
+networking:
+  podSubnet: "$POD_NETWORK_CIDR"
+  serviceSubnet: "10.96.0.0/12"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: "$CGROUP_DRIVER"
 EOF
 
   log INFO "Kubeadm configured"
