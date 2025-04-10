@@ -110,7 +110,7 @@ Examples:
 
   # Setup a worker node
   $1 --node-type worker --control-plane-endpoint k8s-master.example.com join-command kubeadm join ...
-EOF | echo
+EOF
 }
 # Validate required parameters
 validate_params() {
