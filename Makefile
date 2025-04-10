@@ -59,7 +59,7 @@ install: check-root
 		notifempty
 		create 0644 root root
 	}
-EOF
+	EOF
 
 uninstall: check-root
 	@echo "Uninstalling $(PROJECT_NAME)..."
@@ -71,4 +71,4 @@ uninstall: check-root
 
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f *~
+	@rm -f *~
