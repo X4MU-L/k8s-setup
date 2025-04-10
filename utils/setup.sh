@@ -55,7 +55,7 @@ configure_containerd_kubeadm_and_kubelet(){
     configure_containerd
     
     # Configure kubeadm
-    if [[ "$NODE_TYPE" == "control-plane " ]]; then
+    if [[ "$NODE_TYPE" == "control-plane" ]]; then
         configure_kubeadm
     fi
     # Configure kubelet
