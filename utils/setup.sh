@@ -56,7 +56,7 @@ configure_containerd_kubeadm_and_kubelet(){
   # Configure kubelet
   configure_kubelet
   # Configure kubeadm
-   if [ "$NODE_ROLE" = "control-plane " ]; then
+   if [ "$NODE_TYPE" = "control-plane " ]; then
       create_kubeadm_config
   fi
   
@@ -71,12 +71,14 @@ init_master_node() {
       log WARN "Kubernetes control plane already initialized"
   else
       # Pull container images first
-      kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml
+        log INFO "Pulling container images for Kubernetes control plane"
+        kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml
+        log INFO "Container images pulled successfully"
       
       # Initialize the control-plane
-      sudo kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml \ 
-      --upload-certs \  
-      --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
+        sudo kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml \ 
+        --upload-certs \  
+        --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
   fi
   
   # Set up kubectl for root

@@ -121,7 +121,7 @@ install_kubernetes_tools() {
   # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
   # sudo mkdir -p -m 755 /etc/apt/keyrings
   log INFO "Adding Kubernetes APT repository"
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg -y > /dev/null 2>&1
 
   # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -130,12 +130,12 @@ install_kubernetes_tools() {
   # Install the Kubernetes tools (kubeadm, kubelet, kubectl)
   sudo apt-get update > /dev/null 2>&1
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
-  sudo apt-mark unhold kubelet kubeadm kubectl || true
+  sudo apt-mark unhold kubelet kubeadm kubectl || true > /dev/null 2>&1
   # Install the Kubernetes tools
   sudo apt-get install -y kubelet=${KUBERNETES_VERSION}-1.1 kubeadm=${KUBERNETES_VERSION}-1.1 kubectl=${KUBERNETES_VERSION}-1.1 > /dev/null 2>&1
   # Mark the Kubernetes tools to be held at the current version
   # This prevents them from being automatically updated
-  sudo apt-mark hold kubelet kubeadm kubectl
+  sudo apt-mark hold kubelet kubeadm kubectl > /dev/null 2>&1
   # (Optional) Enable the kubelet service before running kubeadm:
   sudo systemctl enable --now kubelet
   
