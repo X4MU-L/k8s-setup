@@ -16,20 +16,13 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update 
-    apt-get upgrade -y 
+    apt-get update > /dev/null 2>&1
+    apt-get upgrade -y  > /dev/null 2>&1
 
     log SUCCESS "System packages updated"
     log INFO "Installing required system packages"
     # Install required system packages
-    apt-get install -y  \  
-        apt-transport-https \   
-        ca-certificates  \ 
-        curl \ 
-        gnupg \ 
-        lsb-release \ 
-        software-properties-common \ 
-        > /dev/null 2>&1
+    apt-get install -y  curl wget apt-transport-https ca-certificates gnupg lsb-release iptables software-properties-common > /dev/null 2>&1
     
     log SUCCESS "Installing required system packages compelted"
 }
@@ -40,10 +33,7 @@ install_dependencies() {
     log INFO "install required dependencies"
     
     # Install required dependencies
-    apt-get install -y  \  
-        linux-modules-extra-$(uname -r)  \ 
-        bpfcc-tools \ 
-        > /dev/null 2>&1
+    apt-get install -y  linux-modules-extra-$(uname -r) bpfcc-tools  > /dev/null 2>&1
     
     # install yq
     wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && \
