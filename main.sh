@@ -144,7 +144,7 @@ main() {
   setup_containerd
   configure_containerd_kubeadm_and_kubelet
   
-  if [ "$NODE_ROLE" = "control-plane " ]; then
+  if [ "$NODE_TYPE" = "control-plane " ]; then
     init_master_node
   else
     join_worker_node
