@@ -16,42 +16,56 @@
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
+YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Logger function
+# Logging functions
 log() {
     local level=$1
     local message=$2
-    local timestamp
-    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-  
-    case $level in
-        SUCCESS)
-        echo -e "${GREEN}[SUCCESS]${NC} ${timestamp} - $message"
-        ;;
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    
+    # Only log if the level is at or above the configured log level
+    case $LOG_LEVEL in
+        DEBUG)
+            ;;
         INFO)
-        echo -e "${BLUE}[INFO]${NC} ${timestamp} - $message"
-        ;;
+            if [ "$level" = "DEBUG" ]; then return; fi
+            ;;
         WARN)
-        echo -e "${YELLOW}[WARN]${NC} ${timestamp} - $message"
-        ;;
+            if [ "$level" = "DEBUG" ] || [ "$level" = "INFO" ]; then return; fi
+            ;;
         ERROR)
-        echo -e "${RED}[ERROR]${NC} ${timestamp} - $message"
-        ;;
-        *)
-        echo -e "${BLUE}[DEBUG]${NC} ${timestamp} - $message"
-        ;;
+            if [ "$level" = "DEBUG" ] || [ "$level" = "INFO" ] || [ "$level" = "WARN" ]; then return; fi
+            ;;
     esac
-  
-  # Log to file if LOG_DIR exists
-    if [ -n "${LOG_DIR:-}" ] && [ -d "$LOG_DIR" ]; then
-        echo "[$level] $timestamp - $message" >> "$LOG_DIR/k8s-installer.log"
-    fi
-
-    if [[ "${DEBUG:-false}" == true ]]; then
-        echo "[$level] $timestamp - $message"
+    
+    case $level in
+        DEBUG)
+            echo -e "${PURPLE}[DEBUG]${NC} $timestamp - $message"
+            ;;
+        INFO)
+            echo -e "${BLUE}[INFO]${NC} $timestamp - $message"
+            ;;
+        WARN)
+            echo -e "${YELLOW}[WARN]${NC} $timestamp - $message"
+            ;;
+        ERROR)
+            echo -e "${RED}[ERROR]${NC} $timestamp - $message"
+            ;;
+        SUCCESS)
+            echo -e "${GREEN}[SUCCESS]${NC} $timestamp - $message"
+            ;;
+        *)
+            echo -e "$timestamp - $message"
+            ;;
+    esac
+    
+    # Also log to file if LOG_FILE is set
+    if [ -n "$LOG_FILE" ]; then
+        echo "[$level] $timestamp - $message" >> "$LOG_FILE"
     fi
 }
 
@@ -64,37 +78,189 @@ check_root() {
   log INFO "Running with root privileges"
 }
 
-# Function to show help message
-# Display help information
+# Display help message
 show_help() {
     cat << EOF
-  Kubernetes Cluster Setup Utility
+Kubernetes Cluster Setup Script
 
-  Usage: sudo ./k8s-setup-utility.sh [OPTIONS]
+Usage: $0 [options]
 
-  Options:
-    --control-plane              Configure as control plane node
-    --worker                     Configure as worker node
-    --k8s-version=VERSION        Kubernetes version to install (default: 1.32.3)
-    --cni=PLUGIN                 CNI plugin (cilium or calico, default: cilium)
-    --cni-version=VERSION        CNI plugin version (default: v1.17.2)
-    --pod-network-cidr=CIDR      Pod network CIDR (default: 10.0.0.0/8)
-    --control-plane-endpoint=EP  Control plane endpoint address
-    --join-token=TOKEN           Join token for worker nodes
-    --help                       Display this help message
+Options:
+  \t-t, --node-type <type>              Node type: 'control-plane' or 'worker'
+  \t-k, --kubernetes-version <version>  Kubernetes version to install (default: 1.32.0)
+  \t-r, --container-runtime-version <v> Container runtime version (default: 2.0.4)
+  \t-c, --cni <provider>                CNI provider: 'cilium', 'calico', 'flannel' (default: cilium)
+  \t-C, --cni-version <version>         CNI version (default: 1.17.2)
+  \t-p, --pod-cidr <cidr>               Pod network CIDR (default: 10.244.0.0/16)
+  \t-s, --service-cidr <cidr>           Service network CIDR (default: 10.96.0.0/12)
+  \t-e, --control-plane-endpoint <ep>   Control plane endpoint (required for control-plane)
+  \t--control-plane-port <port>         Control plane port (default: 6443)
+  \t--token <token>                     Bootstrap token (optional, auto-generated if not provided)
+  \t--token-ttl <duration>              Token time-to-live (default: 24h0m0s)
+  \t--skip-cni                          Skip CNI installation
+  \t--force-reset                       Force reset existing Kubernetes setup
+  \t--log-level <level>                 Log level: DEBUG, INFO, WARN, ERROR (default: INFO)
+  \t-v, -vv, -vvv, --debug, --verbose   Enable verbose logging (takes precedence over --log-level)
+  \t--log-file <file>                   Log to file in addition to stdout (default: $LOG_FILE)
+  \t-h, --help                          Show this help message
 
-  Example:
-    # Setup control plane:
-    sudo ./k8s-setup-utility.sh --control-plane --k8s-version=1.32.3 --cni=cilium
-    
-    # Setup worker node:
-    sudo ./k8s-setup-utility.sh --worker --join-token="kubeadm join..."
+Examples:
+  \t# Setup a control plane node
+  \t$0 --node-type control-plane --control-plane-endpoint k8s-master.example.com
+
+  \t# Setup a worker node
+  \t$0 --node-type worker --control-plane-endpoint k8s-master.example.com join-command 'kubeadm join ...
 EOF
 }
+# Validate required parameters
+validate_params() {
+    log INFO "Validating parameters..."
+    
+    # Validate node type
+    if [[ "$NODE_TYPE" != "control-plane" && "$NODE_TYPE" != "worker" ]]; then
+        log ERROR "Invalid node type: $NODE_TYPE. Must be 'control-plane' or 'worker'"
+        exit 1
+    fi
+    
+    # Validate control plane endpoint for control-plane nodes
+    if [[ "$NODE_TYPE" == "control-plane" && -z "$CONTROL_PLANE_ENDPOINT" ]]; then
+        # If not provided, use the hostname
+        HOSTNAME=$(hostname -f)
+        log WARN "Control plane endpoint not provided. Using hostname: $HOSTNAME"
+        CONTROL_PLANE_ENDPOINT="$HOSTNAME"
+    fi
+    
+    # Validate control plane endpoint for worker nodes
+    if [[ "$NODE_TYPE" == "worker" && -z "$CONTROL_PLANE_ENDPOINT" ]]; then
+        log ERROR "Control plane endpoint is required for worker nodes"
+        exit 1
+    fi
+    
+    if [[ "$NODE_TYPE" == "worker" && -z "$JOIN_COMMAND" ]]; then
+        log ERROR "Join command is required for worker nodes"
+        exit 1
+    fi
+
+    # Validate CNI provider
+    case $CNI_PROVIDER in
+        cilium|calico|flannel)
+            log INFO "Using CNI provider: $CNI_PROVIDER"
+            ;;
+        *)
+            log ERROR "Unsupported CNI provider: $CNI_PROVIDER. Must be 'cilium', 'calico', or 'flannel'"
+            exit 1
+            ;;
+    esac
+    
+    # Set pod CIDR based on CNI if not explicitly provided
+    if [[ "$POD_NETWORK_CIDR" == "10.244.0.0/16" ]]; then
+        case $CNI_PROVIDER in
+            cilium)
+                POD_NETWORK_CIDR="10.217.0.0/16"
+                ;;
+            calico)
+                POD_NETWORK_CIDR="192.168.0.0/16"
+                ;;
+            flannel)
+                POD_NETWORK_CIDR="10.244.0.0/16"
+                ;;
+        esac
+        log INFO "Using default pod CIDR for $CNI_PROVIDER: $POD_NETWORK_CIDR"
+    fi
+    
+    log SUCCESS "Parameters validated successfully"
+}
+
 
 # Perform cleanup on script exit
 cleanup() {
-  log INFO "Performing cleanup"
-  # Add cleanup tasks if needed
-  
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        log ERROR "Script execution failed with exit code $exit_code"
+    else
+        log SUCCESS "Script execution completed successfully"
+    fi
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -t|--node-type)
+                NODE_TYPE="$2"
+                shift 2
+                ;;
+            -k|--kubernetes-version)
+                KUBERNETES_VERSION="$2"
+                shift 2
+                ;;
+            -r|--container-runtime-version)
+                CONTAINER_RUNTIME_VERSION="$2"
+                shift 2
+                ;;
+            -c|--cni)
+                CNI_PROVIDER="$2"
+                shift 2
+                ;;
+            -C|--cni-version)
+                CNI_VERSION="$2"
+                shift 2
+                ;;
+            -p|--pod-cidr)
+                POD_NETWORK_CIDR="$2"
+                shift 2
+                ;;
+            -s|--service-cidr)
+                SERVICE_SUBNET="$2"
+                shift 2
+                ;;
+            -e|--control-plane-endpoint)
+                CONTROL_PLANE_ENDPOINT="$2"
+                shift 2
+                ;;
+            --control-plane-port)
+                CONTROL_PLANE_PORT="$2"
+                shift 2
+                ;;
+            --token)
+                CUSTOM_TOKEN="$2"
+                shift 2
+                ;;
+            --token-ttl)
+                TOKEN_TTL="$2"
+                shift 2
+                ;;
+            --skip-cni)
+                SKIP_CNI_INSTALL=true
+                shift
+                ;;
+            --force-reset)
+                FORCE_RESET=true
+                shift
+                ;;
+            --log-level)
+                LOG_LEVEL="$2"
+                shift 2
+                ;;
+            --log-file)
+                LOG_FILE="$2"
+                shift 2
+                ;;
+            -v|-vv|-vvv|--debug|--verbose)
+                LOG_LEVEL="DEBUG"
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                log ERROR "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+
+log INFO "Parsed arguments: \n using -> \tNODE TYPE=$NODE_TYPE,\n \t\tKUBERNETES VERSION=$KUBERNETES_VERSION,\n \t\tCNI PROVIDER=$CNI_PROVIDER,\n \t\tCNI VERSION=$CNI_VERSION,\n \t\tPOD NETWORK CIDR=$POD_NETWORK_CIDR,\n \t\tSERVICE SUBNET=$SERVICE_SUBNET,\n \t\tCONTROL PLANE ENDPOINT=$CONTROL_PLANE_ENDPOINT,\n \t\tJOIN COMMAND=$JOIN_COMMAND"
 }
