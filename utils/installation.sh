@@ -16,8 +16,8 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update > /dev/null 2>&1
-    apt-get upgrade -y  > /dev/null 2>&1
+    apt-get update 
+    apt-get upgrade -y 
 
     log SUCCESS "System packages updated"
     log INFO "Installing required system packages"

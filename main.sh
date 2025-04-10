@@ -136,12 +136,12 @@ parse_args() {
         exit 1
     fi
 
-   log INFO "Parsed arguments: \n\n using -> \n\tNODE_TYPE=$NODE_TYPE,\n \tKUBERNETES_VERSION=$KUBERNETES_VERSION,\n \tCNI_PROVIDER=$CNI_PROVIDER,\n \tCNI_VERSION=$CNI_VERSION,\n \tPOD_NETWORK_CIDR=$POD_NETWORK_CIDR,\n \tCONTROL_PLANE_ENDPOINT=$CONTROL_PLANE_ENDPOINT,\n \tJOIN_COMMAND=$JOIN_COMMAND\n"
+   log INFO "Parsed arguments: \n using -> \t\tNODE TYPE=$NODE_TYPE,\n \t\tKUBERNETES VERSION=$KUBERNETES_VERSION,\n \t\tCNI PROVIDER=$CNI_PROVIDER,\n \t\tCNI VERSION=$CNI_VERSION,\n \t\tPOD NETWORK CIDR=$POD_NETWORK_CIDR,\n \t\tCONTROL PLANE ENDPOINT=$CONTROL_PLANE_ENDPOINT,\n \t\tJOIN COMMAND=$JOIN_COMMAND"
 }
 
 # Main function
 main() {
-    log INFO "Starting Kubernetes installation with version $KUBERNETES_VERSION, role: $NODE_TYPE"
+    log INFO "Starting Cluster setup utility... 💥"
     
     check_root
     setup_system_environment
