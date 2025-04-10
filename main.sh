@@ -19,12 +19,12 @@ ARCH=""
 DEBUG=false
 KUBERNETES_VERSION="1.32.0"
 CONTAINER_RUNTIME_VERSION="2.0.4"
-CILIUM_VERSION="v1.17.2"
+CNI_VERSION="v1.17.2"
+CNI_PROVIDER="cilium"  # Options: cilium, calico
 NODE_TYPE=""
 POD_NETWORK_CIDR="10.0.0.0/8"
 CONTROL_PLANE_ENDPOINT=""
 JOIN_COMMAND=""
-CNI_PROVIDER="cilium"  # Options: cilium, calico
 CGROUP_DRIVER=""
 INIT_SYSTEM=""
 CGROUP_VERSION=""
@@ -47,7 +47,7 @@ usage() {
     echo "  --node-type TYPE           Specify node type (control-plane or worker)"
     echo "  --k8s-version VERSION      Kubernetes version to install (default: ${KUBERNETES_VERSION})"
     echo "  --container-runtime-version VERSION  Container runtime version (default: ${CONTAINER_RUNTIME_VERSION})"
-    echo "  --cilium-version VERSION   Cilium CNI version (default: ${CILIUM_VERSION})"
+    echo "  --cilium-version VERSION   Cilium CNI version (default: ${CNI_VERSION})"
     echo "  --cni-provider PROVIDER    CNI provider (cilium or calico, default: ${CNI_PROVIDER})"
     echo "  --pod-network-cidr CIDR    Pod network CIDR (default: ${POD_NETWORK_CIDR})"
     echo "  --control-plane-endpoint ENDPOINT  Control plane endpoint (required for control-plane)"
@@ -75,8 +75,12 @@ parse_args() {
                 CONTAINER_RUNTIME_VERSION="$2"
                 shift 2
                 ;;
-            --cilium-version)
-                CILIUM_VERSION="$2"
+            --cni-version)
+                CNI_VERSION="$2"
+                shift 2
+                ;;
+            --cni-provider)
+                CNI_PROVIDER="$2"
                 shift 2
                 ;;
             --pod-network-cidr)
@@ -132,7 +136,7 @@ parse_args() {
         exit 1
     fi
 
-   log INFO "Parsed arguments: NODE_TYPE=$NODE_TYPE, KUBERNETES_VERSION=$KUBERNETES_VERSION, CILIUM_VERSION=$CILIUM_VERSION, POD_NETWORK_CIDR=$POD_NETWORK_CIDR, CONTROL_PLANE_ENDPOINT=$CONTROL_PLANE_ENDPOINT, JOIN_COMMAND=$JOIN_COMMAND"
+   log INFO "Parsed arguments: \n\n using -> \n\tNODE_TYPE=$NODE_TYPE,\n \tKUBERNETES_VERSION=$KUBERNETES_VERSION,\n \tCNI_PROVIDER=$CNI_PROVIDER,\n \tCNI_VERSION=$CNI_VERSION,\n \tPOD_NETWORK_CIDR=$POD_NETWORK_CIDR,\n \tCONTROL_PLANE_ENDPOINT=$CONTROL_PLANE_ENDPOINT,\n \tJOIN_COMMAND=$JOIN_COMMAND\n"
 }
 
 # Main function

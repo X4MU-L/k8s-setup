@@ -109,9 +109,9 @@ install_cillium(){
     rm cilium-linux-${ARCH}.tar.gz{,.sha256sum}
 
     # Install Cilium CNI
-    cilium install --version "$CILIUM_CLI_VERSION"
+    cilium install --version "$CNI_VERSION"
 
-    log INFO "Cilium CNI plugin version $CILIUM_CLI_VERSION installed"
+    log INFO "Cilium CNI plugin version $CNI_VERSION installed"
 }
 
 # Install chosen CNI plugin
@@ -143,7 +143,7 @@ install_calico() {
     fi
   
     # Install Calico
-    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CNI_VERSION}/manifests/tigera-operator.yaml
   
     # Create Calico custom resource with specified CIDR
     cat > /tmp/calico-cr.yaml << EOF

@@ -50,7 +50,7 @@ log() {
         echo "[$level] $timestamp - $message" >> "$LOG_DIR/k8s-installer.log"
     fi
 
-    if [ "${DEBUG:-false}" = true ]; then
+    if [[ "${DEBUG:-false}" == true ]]; then
         echo "[$level] $timestamp - $message"
     fi
 }
