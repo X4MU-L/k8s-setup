@@ -79,8 +79,7 @@ init_master_node() {
         # Initialize the control-plane
         kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
     fi
-    # Install CNI based on selection
-    install_cni
+   
     # Set up kubectl for root
     mkdir -p /root/.kube
     cp -f /etc/kubernetes/admin.conf /root/.kube/config
@@ -93,8 +92,10 @@ init_master_node() {
         cp -f /etc/kubernetes/admin.conf $USER_HOME/.kube/config
         chown -R $SUDO_USER:$SUDO_USER $USER_HOME/.kube
     fi
-
     log SUCCESS "Kubernetes control plane initialized successfully"
+    
+     # Install CNI based on selection
+    install_cni
 }
 
 
