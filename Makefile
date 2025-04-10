@@ -49,17 +49,21 @@ install: check-root
 	@chmod 755 $(LOG_DIR)
 
 # Setup logrotate
-	@tee "/etc/logrotate.d/$(PROJECT_NAME)" > /dev/null << EOF
-	$(LOG_DIR)/*.log {
-		daily
-		rotate 7
-		compress
-		delaycompress
-		missingok
-		notifempty
-		create 0644 root root
-	}
-	EOF
+	@echo "Setting up logrotate configuration..."
+	@if ! test -f "/etc/logrotate.d/$(PROJECT_NAME)"; then \
+		printf "%s\n" "$(LOG_DIR)/*.log {" \
+		"    daily" \
+		"    rotate 7" \
+		"    compress" \
+		"    delaycompress" \
+		"    missingok" \
+		"    notifempty" \
+		"    create 0644 root root" \
+		"}" | tee "/etc/logrotate.d/$(PROJECT_NAME)" > /dev/null; \
+		echo "Logrotate configuration created."; \
+	else \
+		echo "Logrotate configuration already exists."; \
+	fi
 
 uninstall: check-root
 	@echo "Uninstalling $(PROJECT_NAME)..."
