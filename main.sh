@@ -14,16 +14,24 @@ PROJECT_ROOT=$(dirname "$(readlink -f "$0")")
 
 
 # Default values
-LOG_DIR="/var/log/k8s-installer"
-ARCH=""
-DEBUG=false
 KUBERNETES_VERSION="1.32.0"
 CONTAINER_RUNTIME_VERSION="2.0.4"
-CNI_VERSION="v1.17.2"
+CRI_SOCKET="/run/containerd/containerd.sock"
+CNI_VERSION="1.17.2"
 CNI_PROVIDER="cilium"  # Options: cilium, calico
-NODE_TYPE=""
-POD_NETWORK_CIDR="10.0.0.0/8"
+POD_NETWORK_CIDR="10.244.0.0/16"
+SERVICE_SUBNET="10.96.0.0/12"
+CONTROL_PLANE_PORT="6443"
+TOKEN_TTL="24h0m0s"
+SKIP_CNI_INSTALL=false
+FORCE_RESET=false
+LOG_LEVEL="INFO"
+LOG_DIR="/var/log/$0/"
+LOG_FILE="$LOG_DIR/$0.log"
 CONTROL_PLANE_ENDPOINT=""
+ARCH=""
+NODE_TYPE=""
+CUSTOM_TOKEN=""
 JOIN_COMMAND=""
 CGROUP_DRIVER=""
 INIT_SYSTEM=""
@@ -39,128 +47,40 @@ source "$PROJECT_ROOT/utils/configuration.sh"
 source "$PROJECT_ROOT/utils/setup.sh"
 
 
-# Display usage information
-usage() {
-    echo "Usage: $0 [OPTIONS]"
-    echo ""
-    echo "Options:"
-    echo "  --node-type TYPE           Specify node type (control-plane or worker)"
-    echo "  --k8s-version VERSION      Kubernetes version to install (default: ${KUBERNETES_VERSION})"
-    echo "  --container-runtime-version VERSION  Container runtime version (default: ${CONTAINER_RUNTIME_VERSION})"
-    echo "  --cilium-version VERSION   Cilium CNI version (default: ${CNI_VERSION})"
-    echo "  --cni-provider PROVIDER    CNI provider (cilium or calico, default: ${CNI_PROVIDER})"
-    echo "  --pod-network-cidr CIDR    Pod network CIDR (default: ${POD_NETWORK_CIDR})"
-    echo "  --control-plane-endpoint ENDPOINT  Control plane endpoint (required for control-plane)"
-    echo "  --join-command COMMAND     Join command (required for worker nodes)"
-    echo "  --help                     Display this help message"
-    echo ""
-    echo "Example:"
-    echo "  Control plane: $0 --node-type control-plane --control-plane-endpoint k8s-master.example.com"
-    echo "  Worker node:   $0 --node-type worker --join-command 'kubeadm join ...'"
-}
-
-# Parse command line arguments
-parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --node-type)
-                NODE_TYPE="$2"
-                shift 2
-                ;;
-            --k8s-version)
-                KUBERNETES_VERSION="$2"
-                shift 2
-                ;;
-            --container-runtime-version)
-                CONTAINER_RUNTIME_VERSION="$2"
-                shift 2
-                ;;
-            --cni-version)
-                CNI_VERSION="$2"
-                shift 2
-                ;;
-            --cni-provider)
-                CNI_PROVIDER="$2"
-                shift 2
-                ;;
-            --pod-network-cidr)
-                POD_NETWORK_CIDR="$2"
-                shift 2
-                ;;
-            --control-plane-endpoint)
-                CONTROL_PLANE_ENDPOINT="$2"
-                shift 2
-                ;;
-            --join-command)
-                JOIN_COMMAND="$2"
-                shift 2
-                ;;
-            -v|-vv|-vvv|--debug|--verbose)
-                DEBUG=true
-                shift 2
-                ;;  
-            -h|--help)
-                usage
-                exit 0
-                ;;
-            *)
-                log_error "Unknown option: $1"
-                usage
-                exit 1
-                ;;
-        esac
-    done
-
-     # Validate required parameters
-    if [[ -z "$NODE_TYPE" ]]; then
-        log ERROR "Node type is required. Use --node-type control-plane or --node-type worker"
-        usage
-        exit 1
-    fi
-
-    if [[ "$NODE_TYPE" != "control-plane" && "$NODE_TYPE" != "worker" ]]; then
-        log ERROR "Invalid node type. Use --node-type control-plane or --node-type worker"
-        usage
-        exit 1
-    fi
-
-    if [[ "$NODE_TYPE" == "control-plane" && -z "$CONTROL_PLANE_ENDPOINT" ]]; then
-        log ERROR "Control plane endpoint is required for control plane nodes"
-        usage
-        exit 1
-    fi
-
-    if [[ "$NODE_TYPE" == "worker" && -z "$JOIN_COMMAND" ]]; then
-        log ERROR "Join command is required for worker nodes"
-        usage
-        exit 1
-    fi
-
-   log INFO "Parsed arguments: \n using -> \tNODE TYPE=$NODE_TYPE,\n \t\tKUBERNETES VERSION=$KUBERNETES_VERSION,\n \t\tCNI PROVIDER=$CNI_PROVIDER,\n \t\tCNI VERSION=$CNI_VERSION,\n \t\tPOD NETWORK CIDR=$POD_NETWORK_CIDR,\n \t\tCONTROL PLANE ENDPOINT=$CONTROL_PLANE_ENDPOINT,\n \t\tJOIN COMMAND=$JOIN_COMMAND"
-}
-
 # Main function
 main() {
-    log INFO "Starting Cluster setup utility... 💥"
-    
+    log INFO "Starting Kubernetes cluster setup utility v1.0.0"
+    # Check if running as root
     check_root
+    # Validate parameters
+    validate_params
+    # Setup system environment
     setup_system_environment
-    setup_containerd
-    configure_containerd_kubeadm_and_kubelet
-    
+    # Setup container runtime
+    setup_container_runtime
+    # Setup Kubernetes components
+    setup_kubernetes
+    # Initialize or join cluster
     if [[ "$NODE_TYPE" == "control-plane" ]]; then
-        init_master_node
+        init_control_plane
+        install_cni
+        verify_cluster   
+        # Print success message with join command
+        log SUCCESS "Kubernetes control plane initialized successfully!"
+        log INFO "To join worker nodes to this cluster, run the following command on each worker node:"
+        log INFO "$(cat /var/log/kubeadm-join-command.txt)"
     else
         join_worker_node
+        log SUCCESS "Worker node setup completed successfully!"
     fi
-    check_init_status
-  
-  log SUCCESS "Kubernetes setup completed successfully"
+    log SUCCESS "Kubernetes setup completed successfully"
 }
 
 # Handle script exit
 trap cleanup EXIT
 
-# Start installation
+# Parse command line arguments
 parse_args "$@"
+
+# Start installation
 main
