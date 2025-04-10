@@ -83,34 +83,34 @@ show_help() {
     cat << EOF
 Kubernetes Cluster Setup Script
 
-Usage: $0 [options]
+Usage: $1 [options]
 
 Options:
-  \t-t, --node-type <type>              Node type: 'control-plane' or 'worker'
-  \t-k, --kubernetes-version <version>  Kubernetes version to install (default: 1.32.0)
-  \t-r, --container-runtime-version <v> Container runtime version (default: 2.0.4)
-  \t-c, --cni <provider>                CNI provider: 'cilium', 'calico', 'flannel' (default: cilium)
-  \t-C, --cni-version <version>         CNI version (default: 1.17.2)
-  \t-p, --pod-cidr <cidr>               Pod network CIDR (default: 10.244.0.0/16)
-  \t-s, --service-cidr <cidr>           Service network CIDR (default: 10.96.0.0/12)
-  \t-e, --control-plane-endpoint <ep>   Control plane endpoint (required for control-plane)
-  \t--control-plane-port <port>         Control plane port (default: 6443)
-  \t--token <token>                     Bootstrap token (optional, auto-generated if not provided)
-  \t--token-ttl <duration>              Token time-to-live (default: 24h0m0s)
-  \t--skip-cni                          Skip CNI installation
-  \t--force-reset                       Force reset existing Kubernetes setup
-  \t--log-level <level>                 Log level: DEBUG, INFO, WARN, ERROR (default: INFO)
-  \t-v, -vv, -vvv, --debug, --verbose   Enable verbose logging (takes precedence over --log-level)
-  \t--log-file <file>                   Log to file in addition to stdout (default: $LOG_FILE)
-  \t-h, --help                          Show this help message
+  -t, --node-type <type>              Node type: 'control-plane' or 'worker'
+  -k, --kubernetes-version <version>  Kubernetes version to install (default: 1.32.0)
+  -r, --container-runtime-version <v> Container runtime version (default: 2.0.4)
+  -c, --cni <provider>                CNI provider: 'cilium', 'calico', 'flannel' (default: cilium)
+  -C, --cni-version <version>         CNI version (default: 1.17.2)
+  -p, --pod-cidr <cidr>               Pod network CIDR (default: 10.244.0.0/16)
+  -s, --service-cidr <cidr>           Service network CIDR (default: 10.96.0.0/12)
+  -e, --control-plane-endpoint <ep>   Control plane endpoint (required for control-plane)
+  --control-plane-port <port>         Control plane port (default: 6443)
+  --token <token>                     Bootstrap token (optional, auto-generated if not provided)
+  --token-ttl <duration>              Token time-to-live (default: 24h0m0s)
+  --skip-cni                          Skip CNI installation
+  --force-reset                       Force reset existing Kubernetes setup
+  --log-level <level>                 Log level: DEBUG, INFO, WARN, ERROR (default: INFO)
+  -v, -vv, -vvv, --debug, --verbose   Enable verbose logging (takes precedence over --log-level)
+  --log-file <file>                   Log to file in addition to stdout (default: $LOG_FILE)
+  -h, --help                          Show this help message
 
 Examples:
-  \t# Setup a control plane node
-  \t$0 --node-type control-plane --control-plane-endpoint k8s-master.example.com
+  # Setup a control plane node
+  $1 --node-type control-plane --control-plane-endpoint k8s-master.example.com
 
-  \t# Setup a worker node
-  \t$0 --node-type worker --control-plane-endpoint k8s-master.example.com join-command 'kubeadm join ...
-EOF
+  # Setup a worker node
+  $1 --node-type worker --control-plane-endpoint k8s-master.example.com join-command kubeadm join ...
+EOF | echo
 }
 # Validate required parameters
 validate_params() {
