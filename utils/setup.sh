@@ -79,12 +79,8 @@ init_master_node() {
         # Initialize the control-plane
         kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
     fi
-   
-    # Set up kubectl for root
-    mkdir -p /root/.kube
-    cp -f /etc/kubernetes/admin.conf /root/.kube/config
-    chown $(id -u):$(id -g) /root/.kube/config
 
+    log DEBUG "sudo user: $SUDO_USER"
     # Set up kubectl for the current user if not root
     if [[ $SUDO_USER ]]; then
         USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)

@@ -97,6 +97,6 @@ rm -rf "$TMP_DIR"
 echo "Installation completed successfully!"
 echo "You can now use '$PROJECT_NAME' command to set up Kubernetes"
 echo "Examples:"
-echo "  sudo $PROJECT_NAME --role master --version 1.28.0"
-echo "  sudo $PROJECT_NAME --role worker"
+echo "  sudo $PROJECT_NAME --node-type control-plane --control-plane-endpoint 'k8s-master.example.com'"
+echo "  sudo $PROJECT_NAME --node-type worker --join-command 'kubeadm join ...'"
 
