@@ -14,7 +14,6 @@ PROJECT_ROOT=$(dirname "$(readlink -f "$0")")
 
 
 # Default values
-INSTALL_DIR="/usr/local/bin/k8s-installer"
 LOG_DIR="/var/log/k8s-installer"
 ARCH=""
 DEBUG=false
@@ -133,8 +132,7 @@ parse_args() {
         exit 1
     fi
 
-    # Compute derived values
-    KUBERNETES_PACKAGE_VERSION="${KUBERNETES_VERSION}-00"
+   log INFO "Parsed arguments: NODE_TYPE=$NODE_TYPE, KUBERNETES_VERSION=$KUBERNETES_VERSION, CILIUM_VERSION=$CILIUM_VERSION, POD_NETWORK_CIDR=$POD_NETWORK_CIDR, CONTROL_PLANE_ENDPOINT=$CONTROL_PLANE_ENDPOINT, JOIN_COMMAND=$JOIN_COMMAND"
 }
 
 # Main function
@@ -160,4 +158,5 @@ main() {
 trap cleanup EXIT
 
 # Start installation
+parse_args "$@"
 main

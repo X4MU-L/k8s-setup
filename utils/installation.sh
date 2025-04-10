@@ -16,7 +16,7 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update && apt-get upgrade -y
+    apt-get update  && apt-get upgrade -y > /dev/null 2>&1
     apt-get install -y  \  
         apt-transport-https \   
         ca-certificates  \ 
@@ -24,6 +24,7 @@ update_system() {
         gnupg \ 
         lsb-release \ 
         software-properties-common \ 
+        > /dev/null 2>&1
     
     log SUCCESS "System packages updated"
 }
@@ -36,11 +37,12 @@ install_dependencies() {
     # Install required dependencies
     apt-get install -y  \  
         linux-modules-extra-$(uname -r)  \ 
-        bpfcc-tools \
+        bpfcc-tools \ 
+        > /dev/null 2>&1
     
     # install yq
     wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && \
-      chmod +x /usr/bin/yq
+      chmod +x /usr/bin/yq > /dev/null 2>&1
   
   log INFO "All dependencies are installed"
 }
@@ -64,8 +66,8 @@ install_containerd() {
     # Download the containerd tarball for the specified version
     # and extract it to /usr/local
     # The version can be passed as an argument or default to 2.0.4
-    wget -q -O containerd.amd64.tar.gz https://github.com/containerd/containerd/releases/download/v${CONTAINER_RUNTIME_VERSION}/containerd-${CONTAINER_RUNTIME_VERSION}-linux-${ARCH}.tar.gz
-    tar Cxzvf /usr/local containerd.amd64.tar.gz
+    wget -q -O containerd.amd64.tar.gz https://github.com/containerd/containerd/releases/download/v${CONTAINER_RUNTIME_VERSION}/containerd-${CONTAINER_RUNTIME_VERSION}-linux-${ARCH}.tar.gz > /dev/null 2>&1
+    tar Cxzvf /usr/local containerd.amd64.tar.gz > /dev/null 2>&1
     rm containerd.amd64.tar.gz
 
     # Download and install the containerd service file
@@ -73,7 +75,7 @@ install_containerd() {
     # The service file is downloaded from the official containerd repository
     # and placed in the systemd directory
     sudo wget -q -O /etc/systemd/system/containerd.service \
-      "https://raw.githubusercontent.com/containerd/containerd/main/containerd.service"
+      "https://raw.githubusercontent.com/containerd/containerd/main/containerd.service" > /dev/null 2>&1
 
     # Reload the systemd daemon to recognize the new service
     # and enable it to start on boot
@@ -84,12 +86,12 @@ install_containerd() {
 # Install runc
 install_runc(){
     # Get the runc binary
-    wget -q -O runc https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH}
+    wget -q -O runc https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH} > /dev/null 2>&1
     # Install runc to /usr/local/sbin
     # The runc binary is used by containerd to manage containers
     # The binary is downloaded from the official runc repository
     # and installed with the appropriate permissions
-    install -m 755 runc /usr/local/sbin/runc
+    install -m 755 runc /usr/local/sbin/runc > /dev/null 2>&1
     # Remove the downloaded runc binary
     rm runc
 }
@@ -101,9 +103,9 @@ install_cillium(){
     # Use Cillium as the CNI plugin
     log INFO "Installing Cilium CNI plugin"
     CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
-    curl -L --fail --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${ARCH}.tar.gz{,.sha256sum}"
+    curl -L --fail --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${ARCH}.tar.gz{,.sha256sum}" > /dev/null 2>&1
     sha256sum --check cilium-linux-${ARCH}.tar.gz.sha256sum
-    sudo tar xzvfC cilium-linux-${ARCH}.tar.gz /usr/local/bin
+    sudo tar xzvfC cilium-linux-${ARCH}.tar.gz /usr/local/bin > /dev/null 2>&1
     rm cilium-linux-${ARCH}.tar.gz{,.sha256sum}
 
     # Install Cilium CNI
@@ -118,7 +120,7 @@ install_kubernetes_tools() {
 
   # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
   # sudo mkdir -p -m 755 /etc/apt/keyrings
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
   # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -128,7 +130,7 @@ install_kubernetes_tools() {
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
   sudo apt-mark unhold kubelet kubeadm kubectl || true
   # Install the Kubernetes tools
-  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION}
+  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION} > /dev/null 2>&1
   # Mark the Kubernetes tools to be held at the current version
   # This prevents them from being automatically updated
   sudo apt-mark hold kubelet kubeadm kubectl
