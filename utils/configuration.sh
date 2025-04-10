@@ -84,7 +84,7 @@ configure_containerd() {
   systemctl restart containerd
   systemctl enable containerd
   # Check containerd status
-  systemctl status containerd 
+  systemctl status containerd | tail -n1
   log INFO "Containerd configured"
 }
 

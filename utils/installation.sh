@@ -16,8 +16,8 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update 
-    apt-get upgrade -y 
+    apt-get update > /dev/null 2>&1
+    apt-get upgrade -y  > /dev/null 2>&1
 
     log SUCCESS "System packages updated"
     log INFO "Installing required system packages"
@@ -56,7 +56,7 @@ install_containerd() {
         fi
     fi
     # Remove any existing installations of containerd
-    apt-get remove -y docker docker.io containerd runc || true
+    apt-get remove -y docker docker.io containerd runc > /dev/null 2>&1  || true 
     # Install containerd
     # Download the containerd tarball for the specified version
     # and extract it to /usr/local
@@ -75,7 +75,7 @@ install_containerd() {
     # Reload the systemd daemon to recognize the new service
     # and enable it to start on boot
     systemctl daemon-reload
-    systemctl enable --now containerd
+    systemctl enable --now containerd > /dev/null 2>&1
 
     log SUCCESS "Containerd version ${CONTAINER_RUNTIME_VERSION} installed and service started"
 }
@@ -178,13 +178,13 @@ install_kubernetes_tools() {
   curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg  > /dev/null 2>&1
 
   # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
-  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null 2>&1
 
   log INFO "Adding Kubernetes APT repository completed"
   # Install the Kubernetes tools (kubeadm, kubelet, kubectl)
   sudo apt-get update > /dev/null 2>&1
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
-  sudo apt-mark unhold kubelet kubeadm kubectl || true > /dev/null 2>&1
+  sudo apt-mark unhold kubelet kubeadm kubectl > /dev/null 2>&1 || true
   # Install the Kubernetes tools
   sudo apt-get install -y kubelet=${KUBERNETES_VERSION}-1.1 kubeadm=${KUBERNETES_VERSION}-1.1 kubectl=${KUBERNETES_VERSION}-1.1 > /dev/null 2>&1
   # Mark the Kubernetes tools to be held at the current version

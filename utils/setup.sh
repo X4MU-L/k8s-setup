@@ -83,7 +83,7 @@ init_master_node() {
     # Set up kubectl for root
     mkdir -p /root/.kube
     cp -f /etc/kubernetes/admin.conf /root/.kube/config
-    chown $(id -u):$(id -g) /root/.kube/configå
+    chown $(id -u):$(id -g) /root/.kube/config
 
     # Set up kubectl for the current user if not root
     if [[ $SUDO_USER ]]; then
