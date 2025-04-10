@@ -18,8 +18,6 @@
 setup_system_environment() {
   log INFO "Setting up system environment for Kubernetes"
   
-  # Create necessary directories
-  create_directories
   # Update system packages
   update_system
   # Install needed dependencies

@@ -64,14 +64,6 @@ check_root() {
   log INFO "Running with root privileges"
 }
 
-# Create installation directories
-create_directories() {
-  mkdir -p "$INSTALL_DIR"
-  mkdir -p "$LOG_DIR"
-  chmod 755 "$LOG_DIR"
-}
-
-
 # Function to show help message
 # Display help information
 show_help() {
