@@ -16,7 +16,12 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update  && apt-get upgrade -y > /dev/null 2>&1
+    apt-get update 
+    apt-get upgrade -y 
+
+    log SUCCESS "System packages updated"
+    log INFO "Installing required system packages"
+    # Install required system packages
     apt-get install -y  \  
         apt-transport-https \   
         ca-certificates  \ 
@@ -26,7 +31,7 @@ update_system() {
         software-properties-common \ 
         > /dev/null 2>&1
     
-    log SUCCESS "System packages updated"
+    log SUCCESS "Installing required system packages compelted"
 }
 
 
