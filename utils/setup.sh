@@ -77,9 +77,7 @@ init_master_node() {
         log INFO "Container images pulled successfully"
       
       # Initialize the control-plane
-        sudo kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml \ 
-        --upload-certs \  
-        --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
+        kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
   fi
   
   # Install CNI based on selection
