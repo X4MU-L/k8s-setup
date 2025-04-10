@@ -15,138 +15,135 @@
 # URL: https://github.com/X4MU-L
 # Kubernetes cluster setup functions
 
+# Setup system environment
 setup_system_environment() {
-  log INFO "Setting up system environment for Kubernetes"
-  
-  # Update system packages
-  update_system
-  # Install needed dependencies
-  install_dependencies
-  # Detect OS and architecture
-  detect_os_and_arch
-  # Detect cgroup configuration
-  detect_cgroup_config
-  # Disable swap
-  disable_swap
-  
-
-  log SUCCESS "Finshed Setting up system environment for Kubernetes"
+    log INFO "Setting up system environment for Kubernetes"
+    # Update system packages
+    update_system
+    # Install needed dependencies
+    install_dependencies
+    # Detect OS and architecture
+    detect_os_and_arch
+    # Detect cgroup configuration
+    detect_cgroup_config
+    # Disable swap
+    disable_swap
+    # Configure system settings
+    configure_system
+    log SUCCESS "System environment setup completed"
 }
 
-setup_containerd() {
-  log INFO "Setting up containerd for Kubernetes"
-  
-  # configure and manage system for kubernetes
-  configure_system
-  # Install containerd
-  install_containerd
-  # Install runc
-  install_runc
-  # install kubeneted tools
-  install_kubernetes_tools
-
-  log SUCCESS "Finished setting up containerd"
-}
-
-configure_containerd_kubeadm_and_kubelet(){
-    log INFO "Configuring containerd, kubeadm, and kubelet"
-  
+# Setup container runtime
+setup_container_runtime() {
+    log INFO "Setting up container runtime"
+    # Install runc
+    install_runc
+    # Install containerd
+    install_containerd
     # Configure containerd
     configure_containerd
-    
-    # Configure kubeadm
-    if [[ "$NODE_TYPE" == "control-plane" ]]; then
-        configure_kubeadm
-    fi
+    log SUCCESS "Container runtime setup completed"
+}
+
+# Setup Kubernetes components
+setup_kubernetes() {
+    log INFO "Setting up Kubernetes components"
+    # Install Kubernetes tools
+    install_kubernetes_tools
     # Configure kubelet
     configure_kubelet
-    
-    log SUCCESS "Finished configuring containerd, kubeadm, and kubelet"
+    log SUCCESS "Kubernetes components setup completed"
 }
-# Initialize Kubernetes master node
-init_master_node() {
-    log INFO "Initializing Kubernetes control-plane node"
-
+# Initialize control plane node
+init_control_plane() {
+    log INFO "Initializing Kubernetes control plane node"
     # Check if kubeadm has already been initialized
     if [[ -f /etc/kubernetes/admin.conf ]]; then
-        log WARN "Kubernetes control plane already initialized"
-    else
-        # Pull container images first
-        log INFO "Pulling container images for Kubernetes control plane"
-        kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml
-        log INFO "Container images pulled successfully"
-        
-        # Initialize the control-plane
-        kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem,FileContent--proc-sys-net-ipv4-ip_forward | tee /var/log/kubeadm-init.log
+        if [[ "$FORCE_RESET" == "true" ]]; then
+            log WARN "Existing Kubernetes control plane found, resetting due to --force-reset flag"
+            kubeadm reset -f || {
+                log ERROR "Failed to reset existing Kubernetes cluster"
+                exit 1
+            }
+        else
+            log WARN "Kubernetes control plane already initialized, skipping initialization"
+            return
+        fi
     fi
-
-    log DEBUG "sudo user: $SUDO_USER"
-    # Set up kubectl for the current user if not root
-    if [[ $SUDO_USER ]]; then
+    # Create kubeadm configuration
+    create_kubeadm_config
+    # Pull container images first
+    log INFO "Pulling container images for Kubernetes control plane"
+    kubeadm config images pull --config /etc/kubernetes/kubeadm-config.yaml > /dev/null 2>&1 || {
+        log WARN "Failed to pull some container images, continuing anyway"
+    }
+    # Initialize the control plane
+    log INFO "Running kubeadm init to initialize the control plane"
+    kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=NumCPU,Mem | tee /var/log/kubeadm-init.log > /dev/null 2>&1 || {
+        log ERROR "Failed to initialize Kubernetes control plane"
+        exit 1
+    } 
+    # Set up kubectl for the root user
+    mkdir -p /root/.kube
+    cp -f /etc/kubernetes/admin.conf /root/.kube/config
+    chown root:root /root/.kube/config
+    # Set up kubectl for the sudo user if applicable
+    if [[ -n "$SUDO_USER" ]]; then
         USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
         mkdir -p $USER_HOME/.kube
         cp -f /etc/kubernetes/admin.conf $USER_HOME/.kube/config
         chown -R $SUDO_USER:$SUDO_USER $USER_HOME/.kube
+        log INFO "kubectl configured for user $SUDO_USER"
     fi
-    log SUCCESS "Kubernetes control plane initialized successfully"
-    
-     # Install CNI based on selection
-    install_cni
-}
-
-
-# Check initialization status
-check_init_status() {
-    log INFO "Checking control plane status..."
-    # Display nodes
-    kubectl get nodes -o wide
-    if [[ "$NODE_TYPE" == "control-plane" ]]; then
-        if [[ "$CNI_PROVIDER" == "cilium" ]]; then
-            
-            cilium status --wait
-            log INFO "Cilium status check completed"
-            # Test connectivity
-            log INFO "Testing connectivity with cilium connectivity test"
-            cilium connectivity test
-            log INFO "Cilium connectivity test completed"
-        else
-            # Wait for API server to become available
-            timeout=60
-            counter=0
-            KUBECONFIG=/etc/kubernetes/admin.conf
-            until kubectl get nodes &>/dev/null; do
-                counter=$((counter + 1))
-                if [ "$counter" -gt "$timeout" ]; then
-                    log ERROR "Timed out waiting for API server to become available"
-                    exit 1
-                fi
-                sleep 1
-            done
-        fi
-
-    fi
-    
-    log SUCCESS "Node initialization completed successfully"
-}
-# Generate join command for worker nodes
-generate_join_command() {
-    log INFO "Generating join command for worker nodes..."
+    # Extract join command for worker nodes
     JOIN_COMMAND=$(kubeadm token create --print-join-command)
-    log INFO "Join command generated: ${JOIN_COMMAND}"
+    echo "$JOIN_COMMAND" | tee /var/log/kubeadm-join-command.txt > /dev/null
+    log INFO "Join command saved to /var/log/kubeadm-join-command.txt"
+    log SUCCESS "Kubernetes control plane initialized successfully"
 }
 
 # Join worker node to the cluster
 join_worker_node() {
-    log INFO "Joining worker node to the cluster..."
-    
-    # Check if node is already part of the cluster
+    log INFO "Joining worker node to the Kubernetes cluster"
+    # Check if node is already part of a cluster
     if [[ -f /etc/kubernetes/kubelet.conf ]]; then
-        log WARN "Worker node already joined to the cluster"
-        return
+        if [[ "$FORCE_RESET" == "true" ]]; then
+            log WARN "Node is already part of a cluster, resetting due to --force-reset flag"
+            kubeadm reset -f || {
+                log ERROR "Failed to reset existing Kubernetes configuration"
+                exit 1
+            }
+        else
+            log WARN "Node is already part of a cluster, skipping join"
+            return
+        fi
+    fi
+    # Construct join command
+    local join_command=""
+    if [[ -n "$CUSTOM_TOKEN" ]]; then
+        # Use provided token
+        join_command="kubeadm join ${CONTROL_PLANE_ENDPOINT}:${CONTROL_PLANE_PORT} --token ${CUSTOM_TOKEN} --discovery-token-unsafe-skip-ca-verification"
+    else
+        # Prompt for join command
+        log INFO "No token provided. Please enter the join command from the control plane node:"
+        log INFO "You can get this by running 'kubeadm token create --print-join-command' on the control plane node"
+        read -p "Join command: " join_command
+        if [[ -z "$join_command" ]]; then
+            log ERROR "No join command provided"
+            exit 1
+        fi
+    fi
+    
+    # Add cri-socket flag if not present
+    if [[ ! "$join_command" =~ "--cri-socket" ]]; then
+        join_command="$join_command --cri-socket=unix://${CRI_SOCKET}"
     fi
     
     # Execute join command
-    eval $JOIN_COMMAND
-    
-    log SUCCESS "Worker node joined to the cluster"
+    log INFO "Executing join command"
+    eval $join_command || {
+        log ERROR "Failed to join the cluster"
+        exit 1
+    }
+    log SUCCESS "Worker node joined the cluster successfully"
 }
