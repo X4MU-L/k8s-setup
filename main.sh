@@ -139,7 +139,7 @@ parse_args() {
 
 # Main function
 main() {
-  log INFO "Starting Kubernetes installation with version $KUBERNETES_VERSION, role: $NODE_ROLE"
+  log INFO "Starting Kubernetes installation with version $KUBERNETES_VERSION, role: $NODE_TYPE"
   
   check_root
   setup_system_environment
