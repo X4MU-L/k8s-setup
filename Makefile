@@ -23,7 +23,7 @@ install: check-root
 	@mkdir -p $(LOG_DIR)
 
 # Copy and process source files
-	@cp -r src utils $(INSTALL_DIR)/ \
+	@cp -r main.sh utils $(INSTALL_DIR)/ \
 	|| { echo "Failed to copy files. Please run on a Linux machine."; \
 	     echo "Cleaning up..."; \
 	     rm -rf $(INSTALL_DIR); \
@@ -35,7 +35,7 @@ install: check-root
 	@echo "Creating wrapper script..."
 	@tmpfile="$$(mktemp)"; \
 	echo '#!/bin/bash' > $$tmpfile; \
-	echo "\"$(INSTALL_DIR)/src/main.sh\" \"\$$@\"" >> $$tmpfile; \
+	echo "\"$(INSTALL_DIR)/main.sh\" \"\$$@\"" >> $$tmpfile; \
 	if ! cmp -s $$tmpfile "$(WRAPPER)"; then \
 		cp $$tmpfile "$(WRAPPER)"; \
 		chmod +x "$(WRAPPER)"; \
@@ -45,7 +45,7 @@ install: check-root
 	fi; \
 	rm -f $$tmpfile 
 # Set permissions
-	@chmod +x "$(INSTALL_DIR)/src/main.sh"
+	@chmod +x "$(INSTALL_DIR)/main.sh"
 	@chmod 755 $(LOG_DIR)
 
 # Setup logrotate
