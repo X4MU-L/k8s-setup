@@ -73,7 +73,13 @@ configure_containerd() {
   # Create the configuration file for containerd
   mkdir -p /etc/containerd
   containerd config default | tee /etc/containerd/config.toml > /dev/null
-  
+  yq -i '.plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options.SystemdCgroup = true' /etc/containerd/config.toml
+
+  # Restart containerd
+  systemctl restart containerd
+  systemctl enable containerd
+  # Check containerd status
+  systemctl status containerd 
   log INFO "Containerd configured"
 }
 
@@ -112,6 +118,7 @@ EOF
 
 # Configure kubelet for cgroup driver
 configure_kubeadm() {
+  log INFO "Configuring kubeadm for cgroup driver: $CGROUP_DRIVER"
   # Create the kubeadm configuration file
   sudo mkdir -p /etc/kubernetes
   
@@ -139,8 +146,8 @@ configure_kubeadm() {
   cgroupDriver: "$CGROUP_DRIVER"
 EOF
 
+  log INFO "Kubeadm configured"
 }
-
 
 # Generate join command
 generate_join_command() {

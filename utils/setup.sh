@@ -49,18 +49,19 @@ setup_containerd() {
 }
 
 configure_containerd_kubeadm_and_kubelet(){
-  log INFO "Configuring containerd, kubeadm, and kubelet"
+    log INFO "Configuring containerd, kubeadm, and kubelet"
   
-  # Configure containerd
-  configure_containerd
-  # Configure kubelet
-  configure_kubelet
-  # Configure kubeadm
-   if [ "$NODE_TYPE" = "control-plane " ]; then
-      create_kubeadm_config
-  fi
-  
-  log SUCCESS "Finished configuring containerd, kubeadm, and kubelet"
+    # Configure containerd
+    configure_containerd
+    
+    # Configure kubeadm
+    if [[ "$NODE_TYPE" == "control-plane " ]]; then
+        configure_kubeadm
+    fi
+    # Configure kubelet
+    configure_kubelet
+    
+    log SUCCESS "Finished configuring containerd, kubeadm, and kubelet"
 }
 # Initialize Kubernetes master node
 init_master_node() {
