@@ -36,7 +36,7 @@ install_dependencies() {
     apt-get install -y  linux-modules-extra-$(uname -r) bpfcc-tools  > /dev/null 2>&1
     
     # install yq
-    wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && \
+    wget -q -O /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64  && \
       chmod +x /usr/bin/yq > /dev/null 2>&1
   
   log INFO "All dependencies are installed"
@@ -132,7 +132,7 @@ install_kubernetes_tools() {
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
   sudo apt-mark unhold kubelet kubeadm kubectl || true
   # Install the Kubernetes tools
-  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION} > /dev/null 2>&1
+  sudo apt-get install -y kubelet=${KUBERNETES_VERSION}-1.1 kubeadm=${KUBERNETES_VERSION}-1.1 kubectl=${KUBERNETES_VERSION}-1.1 > /dev/null 2>&1
   # Mark the Kubernetes tools to be held at the current version
   # This prevents them from being automatically updated
   sudo apt-mark hold kubelet kubeadm kubectl
