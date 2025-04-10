@@ -68,6 +68,15 @@ cd "$TMP_DIR/repo" || {
 # Run make install
 if [ -f "Makefile" ]; then
     # Run make install with project name
+    if ! command -v make >/dev/null 2>&1; then
+    echo "'make' is not installed. Attempting to install..."
+        if command -v apt >/dev/null 2>&1; then
+            apt update && apt install -y make
+        else
+            echo "Automatic installation not supported on this OS. Please install 'make' manually."
+            exit 1
+        fi
+    fi
     make install PROJECT_NAME="$PROJECT_NAME" 2>&1 | grep -v "make: \*\*\*"
     # check if make install was successful
     if [ $? -ne 0 ]; then
