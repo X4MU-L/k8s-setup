@@ -102,6 +102,8 @@ init_master_node() {
 # Check initialization status
 check_init_status() {
     log INFO "Checking control plane status..."
+    # Display nodes
+    kubectl get nodes -o wide
     if [[ "$NODE_TYPE" == "control-plane" ]]; then
         if [[ "$CNI_PROVIDER" == "cilium" ]]; then
             
@@ -125,8 +127,7 @@ check_init_status() {
                 sleep 1
             done
         fi
-        # Display nodes
-        kubectl get nodes -o wide
+
     fi
     
     log SUCCESS "Node initialization completed successfully"
