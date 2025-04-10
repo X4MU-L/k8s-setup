@@ -132,7 +132,7 @@ install_kubernetes_tools() {
   # Remove any existing versions of kubelet, kubeadm, and kubectl if any
   sudo apt-mark unhold kubelet kubeadm kubectl || true
   # Install the Kubernetes tools
-  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION}
+  sudo apt-get install -y kubelet=${KUBERNETES_VERSION} kubeadm=${KUBERNETES_VERSION} kubectl=${KUBERNETES_VERSION} > /dev/null 2>&1
   # Mark the Kubernetes tools to be held at the current version
   # This prevents them from being automatically updated
   sudo apt-mark hold kubelet kubeadm kubectl
