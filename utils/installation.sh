@@ -16,184 +16,240 @@
 update_system() {
     log INFO "Updating system packages..."
     
-    apt-get update > /dev/null 2>&1
-    apt-get upgrade -y  > /dev/null 2>&1
+    apt-get update > /dev/null 2>&1 || { log ERROR "Failed to update package lists"; exit 1; }
+    apt-get upgrade -y > /dev/null 2>&1 || { log WARN "Failed to upgrade packages, continuing anyway"; }
 
     log SUCCESS "System packages updated"
+    
     log INFO "Installing required system packages"
-    # Install required system packages
-    apt-get install -y  curl wget apt-transport-https ca-certificates gnupg lsb-release iptables software-properties-common > /dev/null 2>&1
+    apt-get install -y curl wget apt-transport-https ca-certificates gnupg lsb-release \
+        iptables software-properties-common > /dev/null 2>&1 || { 
+            log ERROR "Failed to install required packages"; 
+            exit 1; 
+        }
     
-    log SUCCESS "Installing required system packages compelted"
+    log SUCCESS "Required system packages installed"
 }
 
-
-# install required dependencies
+# Install required dependencies
 install_dependencies() {
-    log INFO "install required dependencies"
+    log INFO "Installing required dependencies"
     
-    # Install required dependencies
-    apt-get install -y  linux-modules-extra-$(uname -r) bpfcc-tools  > /dev/null 2>&1
+    apt-get install -y linux-modules-extra-$(uname -r) bpfcc-tools > /dev/null 2>&1 || {
+        log WARN "Failed to install some kernel modules, continuing anyway"
+    }
     
-    # install yq
-    # wget -q -O /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64  && \
-    #   chmod +x /usr/bin/yq > /dev/null 2>&1
-  
-  log INFO "All dependencies are installed"
+    # Install yq for YAML processing
+    # if ! command -v yq &> /dev/null; then
+    #     log INFO "Installing yq for YAML processing"
+    #     wget -q -O /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+    #         chmod +x /usr/bin/yq || {
+    #             log WARN "Failed to install yq, continuing without it"
+    #         }
+    # fi
+    log SUCCESS "All dependencies installed"
 }
 
+# Install runc
+install_runc() {
+    log INFO "Installing runc"
+    # Check if runc is already installed
+    if command -v runc &> /dev/null; then
+        CURRENT_VERSION=$(runc --version | head -n 1 | awk '{print $3}')
+        log INFO "runc version $CURRENT_VERSION is already installed"
+        return
+    fi
+    # Install runc
+    
+    wget -q -O runc.amd64 https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH} || {
+        log ERROR "Failed to download runc"
+        exit 1
+    }
+    install -m 755 runc.amd64 /usr/local/sbin/runc > /dev/null 2>&1
+    rm runc.amd64
+    log SUCCESS "runc installed successfully"
+}
 
-# Install container runtime (containerd)
+# Install containerd
 install_containerd() {
-    # Install containerd
     log INFO "Installing containerd version ${CONTAINER_RUNTIME_VERSION}"
     # Check if containerd is already installed
     if command -v containerd &> /dev/null; then
         CURRENT_VERSION=$(containerd --version | awk '{print $3}' | tr -d ',')
         if [[ "$CURRENT_VERSION" == "v${CONTAINER_RUNTIME_VERSION}" ]]; then
-            log WARN "containerd ${CONTAINER_RUNTIME_VERSION} is already installed"
+            log INFO "containerd ${CONTAINER_RUNTIME_VERSION} is already installed"
             return
         fi
+        log INFO "Upgrading containerd from $CURRENT_VERSION to v${CONTAINER_RUNTIME_VERSION}"
     fi
     # Remove any existing installations of containerd
-    apt-get remove -y docker docker.io containerd runc > /dev/null 2>&1  || true 
-    # Install containerd
-    # Download the containerd tarball for the specified version
-    # and extract it to /usr/local
-    # The version can be passed as an argument or default to 2.0.4
-    wget -q -O containerd.amd64.tar.gz https://github.com/containerd/containerd/releases/download/v${CONTAINER_RUNTIME_VERSION}/containerd-${CONTAINER_RUNTIME_VERSION}-linux-${ARCH}.tar.gz > /dev/null 2>&1
-    tar Cxzvf /usr/local containerd.amd64.tar.gz > /dev/null 2>&1
-    rm containerd.amd64.tar.gz
-
+    apt-get remove -y docker docker.io containerd runc > /dev/null 2>&1 || true
+    # Download and install containerd
+    wget -q -O containerd.tar.gz "https://github.com/containerd/containerd/releases/download/v${CONTAINER_RUNTIME_VERSION}/containerd-${CONTAINER_RUNTIME_VERSION}-linux-${ARCH}.tar.gz" || {
+        log ERROR "Failed to download containerd"
+        exit 1
+    }
+    tar Cxzf /usr/local containerd.tar.gz > /dev/null 2>&1 || {
+        log ERROR "Failed to extract containerd"
+        exit 1
+    }
+    rm containerd.tar.gz
     # Download and install the containerd service file
-    # This file is used to manage the containerd service with systemd
-    # The service file is downloaded from the official containerd repository
-    # and placed in the systemd directory
-    sudo wget -q -O /etc/systemd/system/containerd.service \
-      "https://raw.githubusercontent.com/containerd/containerd/main/containerd.service" > /dev/null 2>&1
-
-    # Reload the systemd daemon to recognize the new service
-    # and enable it to start on boot
+    wget -q -O /etc/systemd/system/containerd.service \
+        "https://raw.githubusercontent.com/containerd/containerd/main/containerd.service" || {
+        log ERROR "Failed to download containerd service file"
+        exit 1
+    }
+    # Reload systemd and enable containerd
     systemctl daemon-reload
-    systemctl enable --now containerd > /dev/null 2>&1
-
+    systemctl enable --now containerd > /dev/null 2>&1 || {
+        log ERROR "Failed to enable containerd service"
+        exit 1
+    }
     log SUCCESS "Containerd version ${CONTAINER_RUNTIME_VERSION} installed and service started"
 }
 
-# Install runc
-install_runc(){
-    log INFO "Installing runc"
-    # Get the runc binary
-    wget -q -O runc https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH} > /dev/null 2>&1
-    # Install runc to /usr/local/sbin
-    # The runc binary is used by containerd to manage containers
-    # The binary is downloaded from the official runc repository
-    # and installed with the appropriate permissions
-    install -m 755 runc /usr/local/sbin/runc > /dev/null 2>&1
-    # Remove the downloaded runc binary
-    rm runc
-
-    log SUCCESS "runc installed"
+# Install Kubernetes tools (kubeadm, kubelet, kubectl)
+install_kubernetes_tools() {
+    log INFO "Installing kubeadm, kubelet, and kubectl version $KUBERNETES_VERSION"
+    # Create keyrings directory if it doesn't exist
+    mkdir -p -m 755 /etc/apt/keyrings
+    # Add Kubernetes apt repository
+    curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key" | gpg --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg || {
+        log ERROR "Failed to add Kubernetes apt key"
+        exit 1
+    }
+    # Add Kubernetes apt repository
+    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" > /etc/apt/sources.list.d/kubernetes.list || {
+        log ERROR "Failed to add Kubernetes apt repository"
+        exit 1
+    }
+    # Update apt and install Kubernetes tools
+    apt-get update > /dev/null 2>&1 || {
+        log ERROR "Failed to update apt after adding Kubernetes repository"
+        exit 1
+    }
+    # Remove any holds on Kubernetes packages
+    apt-mark unhold kubelet kubeadm kubectl > /dev/null 2>&1 || true
+    # Install specific versions of Kubernetes tools
+    apt-get install -y kubelet=${KUBERNETES_VERSION}-* kubeadm=${KUBERNETES_VERSION}-* kubectl=${KUBERNETES_VERSION}-* || {
+        log ERROR "Failed to install Kubernetes tools"
+        exit 1
+    }
+    # Hold Kubernetes packages to prevent automatic updates
+    apt-mark hold kubelet kubeadm kubectl || {
+        log WARN "Failed to hold Kubernetes packages"
+    }
+    # Enable kubelet service
+    systemctl enable kubelet || {
+        log WARN "Failed to enable kubelet service"
+    }
+    log SUCCESS "Kubernetes tools installed successfully"
 }
 
-# Download and install CNI plugins
-install_cillium(){
-    # Download and install CNI plugins
-    # CNI plugins are used for networking in Kubernetes
-    # Use Cillium as the CNI plugin
-    log INFO "Installing Cilium CNI plugin"
-    CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
-    curl -L --fail --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${ARCH}.tar.gz{,.sha256sum}" > /dev/null 2>&1
-    sha256sum --check cilium-linux-${ARCH}.tar.gz.sha256sum
-    sudo tar xzvfC cilium-linux-${ARCH}.tar.gz /usr/local/bin > /dev/null 2>&1
-    rm cilium-linux-${ARCH}.tar.gz{,.sha256sum}
-
-    # Install Cilium CNI
-    cilium install --version "$CNI_VERSION"
-
-    log INFO "Cilium CNI plugin version $CNI_VERSION installed"
-}
-
-# Install chosen CNI plugin
+# Install CNI plugin
 install_cni() {
-  log INFO "Installing CNI plugin: $CNI_PROVIDER"
-  
-  case $CNI_PROVIDER in
-    cilium)
-      install_cillium
-      ;;
-    calico)
-      install_calico
-      ;;
-    *)
-      log ERROR "Unsupported CNI plugin: $CNI_PROVIDER"
-      exit 1
-      ;;
-  esac
+    if [[ "$SKIP_CNI_INSTALL" == "true" ]]; then
+        log INFO "Skipping CNI installation as requested"
+        return
+    fi
+    log INFO "Installing CNI plugin: $CNI_PROVIDER"
+    case $CNI_PROVIDER in
+        cilium)
+            install_cilium
+            ;;
+        calico)
+            install_calico
+            ;;
+        flannel)
+            install_flannel
+            ;;
+        *)
+            log ERROR "Unsupported CNI plugin: $CNI_PROVIDER"
+            exit 1
+            ;;
+    esac
+}
+
+# Install Cilium CNI
+install_cilium() {
+    log INFO "Installing Cilium CNI"
+    # Install Cilium CLI
+    if ! command -v cilium &> /dev/null; then
+        log INFO "Installing Cilium CLI"
+        CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+        CLI_ARCH=amd64
+        if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
+        curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}  > /dev/null 2>&1 || {
+            log ERROR "Failed to download Cilium CLI"
+            exit 1
+        }
+        sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
+        tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin > /dev/null 2>&1
+        rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+
+    fi
+    # Install Cilium
+    cilium install --version $CNI_VERSION || {
+        log ERROR "Failed to install Cilium"
+        exit 1
+    }
+    # Wait for Cilium to be ready
+    cilium status --wait || log WARN "Cilium is not fully ready yet"
+    log SUCCESS "Cilium CNI installed successfully"
 }
 
 # Install Calico CNI
 install_calico() {
-  log INFO "Installing Calico CNI"
-  
-  # Adjust for Calico's expected CIDR if necessary
-    if [ "$POD_NETWORK_CIDR" != "192.168.0.0/16" ]; then
-        log WARN "Calico default CIDR is 192.168.0.0/16, but you specified $POD_NETWORK_CIDR"
-        log WARN "This may require additional configuration"
-    fi
-  
-    # Install Calico
-    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v${CNI_VERSION}/manifests/tigera-operator.yaml
-  
-    # Create Calico custom resource with specified CIDR
-    cat > /tmp/calico-cr.yaml << EOF
-    apiVersion: operator.tigera.io/v1
-    kind: Installation
-    metadata:
-    name: default
-    spec:
-    calicoNetwork:
-        ipPools:
-        - blockSize: 26
-        cidr: ${POD_NETWORK_CIDR}
-        encapsulation: VXLANCrossSubnet
-        natOutgoing: Enabled
-        nodeSelector: all()
-EOF
-
-    kubectl create -f /tmp/calico-cr.yaml
-    rm /tmp/calico-cr.yaml
-  
-    log INFO "Calico installed successfully"
+    log INFO "Installing Calico CNI"
+    # Download Calico manifest
+    curl -L https://raw.githubusercontent.com/projectcalico/calico/v${CNI_VERSION}/manifests/calico.yaml -o calico.yaml || {
+        log ERROR "Failed to download Calico manifest"
+        exit 1
+    }
+    # Update pod CIDR if needed
+    if [[ "$POD_NETWORK_CIDR" != "192.168.0.0/16" ]]; then
+        log INFO "Updating Calico manifest with custom pod CIDR: $POD_NETWORK_CIDR"
+        sed -i "s|192.168.0.0/16|$POD_NETWORK_CIDR|g" calico.yaml
+    fi  
+    # Apply Calico manifest
+    kubectl apply -f calico.yaml || {
+        log ERROR "Failed to apply Calico manifest"
+        rm calico.yaml
+        exit 1
+    }
+    rm calico.yaml
+    # Wait for Calico pods to be ready
+    log INFO "Waiting for Calico pods to be ready..."
+    kubectl -n kube-system wait --for=condition=ready pod -l k8s-app=calico-node --timeout=300s || log WARN "Calico pods are not fully ready yet"
+    log SUCCESS "Calico CNI installed successfully"
 }
 
-
-# Install kubeadm, kubelet, and kubectl
-install_kubernetes_tools() {
-  log INFO "Installing kubeadm, kubelet, and kubectl version $KUBERNETES_VERSION"
-
-  # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
-  # sudo mkdir -p -m 755 /etc/apt/keyrings
-  log INFO "Adding Kubernetes APT repository"
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/Release.key  | sudo gpg --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg  > /dev/null 2>&1
-
-  # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
-  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null 2>&1
-
-  log INFO "Adding Kubernetes APT repository completed"
-  # Install the Kubernetes tools (kubeadm, kubelet, kubectl)
-  sudo apt-get update > /dev/null 2>&1
-  # Remove any existing versions of kubelet, kubeadm, and kubectl if any
-  sudo apt-mark unhold kubelet kubeadm kubectl > /dev/null 2>&1 || true
-  # Install the Kubernetes tools
-  sudo apt-get install -y kubelet=${KUBERNETES_VERSION}-1.1 kubeadm=${KUBERNETES_VERSION}-1.1 kubectl=${KUBERNETES_VERSION}-1.1 > /dev/null 2>&1
-  # Mark the Kubernetes tools to be held at the current version
-  # This prevents them from being automatically updated
-  sudo apt-mark hold kubelet kubeadm kubectl > /dev/null 2>&1
-  # (Optional) Enable the kubelet service before running kubeadm:
-  sudo systemctl enable --now kubelet
-  
-  log INFO "Kubernetes tools installed"
+# Install Flannel CNI
+install_flannel() {
+    log INFO "Installing Flannel CNI"
+    # Download Flannel manifest
+    curl -L https://raw.githubusercontent.com/flannel-io/flannel/v${CNI_VERSION}/Documentation/kube-flannel.yml -o kube-flannel.yml || {
+        log ERROR "Failed to download Flannel manifest"
+        exit 1
+    } 
+    # Update pod CIDR if needed
+    if [[ "$POD_NETWORK_CIDR" != "10.244.0.0/16" ]]; then
+        log INFO "Updating Flannel manifest with custom pod CIDR: $POD_NETWORK_CIDR"
+        sed -i "s|10.244.0.0/16|$POD_NETWORK_CIDR|g" kube-flannel.yml
+    fi
+    # Apply Flannel manifest
+    kubectl apply -f kube-flannel.yml || {
+        log ERROR "Failed to apply Flannel manifest"
+        rm kube-flannel.yml
+        exit 1
+    }
+    
+    rm kube-flannel.yml
+    # Wait for Flannel pods to be ready
+    log INFO "Waiting for Flannel pods to be ready..."
+    kubectl -n kube-system wait --for=condition=ready pod -l app=flannel --timeout=300s || log WARN "Flannel pods are not fully ready yet"
+    log SUCCESS "Flannel CNI installed successfully"
 }
 
 # example out put
@@ -227,3 +283,20 @@ install_kubernetes_tools() {
 
 # kubeadm join 10.0.1.179:6443 --token 1m0ddi.min52hcteiok6lw6 \
 # 	--discovery-token-ca-cert-hash sha256:ca478f2bb2450994a2aceb14897ac25444b4f4b5585c556be198f8915cdf9620 
+
+
+# Install runc
+install_runc(){
+    log INFO "Installing runc"
+    # Get the runc binary
+    wget -q -O runc https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.${ARCH} > /dev/null 2>&1
+    # Install runc to /usr/local/sbin
+    # The runc binary is used by containerd to manage containers
+    # The binary is downloaded from the official runc repository
+    # and installed with the appropriate permissions
+    install -m 755 runc /usr/local/sbin/runc > /dev/null 2>&1
+    # Remove the downloaded runc binary
+    rm runc
+
+    log SUCCESS "runc installed"
+}
