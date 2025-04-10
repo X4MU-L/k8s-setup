@@ -36,8 +36,8 @@ install_dependencies() {
     apt-get install -y  linux-modules-extra-$(uname -r) bpfcc-tools  > /dev/null 2>&1
     
     # install yq
-    wget -q -O /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64  && \
-      chmod +x /usr/bin/yq > /dev/null 2>&1
+    # wget -q -O /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64  && \
+    #   chmod +x /usr/bin/yq > /dev/null 2>&1
   
   log INFO "All dependencies are installed"
 }

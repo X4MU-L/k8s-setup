@@ -69,11 +69,16 @@ EOF
 # Configure containerd
 configure_containerd() {
   log INFO "Configuring containerd"
-  
+
   # Create the configuration file for containerd
   mkdir -p /etc/containerd
   containerd config default | tee /etc/containerd/config.toml > /dev/null
-  yq -i '.plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options.SystemdCgroup = true' /etc/containerd/config.toml
+  if grep -q "SystemdCgroup" /etc/containerd/config.toml; then
+    sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+  else
+    # Add it if it doesn't exist
+    sed -i 's/\[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options\]/\[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options\]\n    SystemdCgroup = true/' /etc/containerd/config.toml
+  fi
 
   # Restart containerd
   systemctl restart containerd
