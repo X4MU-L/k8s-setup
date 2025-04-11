@@ -146,7 +146,8 @@ nodeRegistration:
   criSocket: unix://${CRI_SOCKET}
   name: $(hostname -s)
   kubeletExtraArgs:
-    cgroup-driver: ${CGROUP_DRIVER}
+  - name: cgroup-driver
+    value: ${CGROUP_DRIVER}
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
