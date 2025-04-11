@@ -83,7 +83,7 @@ show_help() {
     cat << EOF
 Kubernetes Cluster Setup Script
 
-Usage: $1 [options]
+Usage: $0 [options]
 
 Options:
   -t, --node-type <type>              Node type: 'control-plane' or 'worker'
@@ -106,10 +106,10 @@ Options:
 
 Examples:
   # Setup a control plane node
-  $1 --node-type control-plane --control-plane-endpoint k8s-master.example.com
+  $0 --node-type control-plane --control-plane-endpoint k8s-master.example.com
 
   # Setup a worker node
-  $1 --node-type worker --control-plane-endpoint k8s-master.example.com join-command kubeadm join ...
+  $0 --node-type worker --control-plane-endpoint k8s-master.example.com join-command kubeadm join ...
 EOF
 }
 # Validate required parameters
